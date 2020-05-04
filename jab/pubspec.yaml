@@ -1,0 +1,17 @@
+name: jab
+description: A hierarchical Dependency Injector for Flutter.
+version: 0.0.1
+homepage: https://github.com/lukaszciastko/jab
+
+environment:
+  sdk: ">=2.6.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  jab_example_app:
+    path: ../jab_example_app
