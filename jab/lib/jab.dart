@@ -195,13 +195,17 @@ class _JabState extends State<Jab> implements JabController {
   ///
   /// If the Service has not been initialized, a new instance of the Service will be create lazily.
   T get<T>() {
-    return _jab.get<T>() ?? Jab.get<T>(context, returnNullIfNotFound: true) ?? JabInjector.root.get<T>();
+    return _jab.get<T>() ??
+        Jab.get<T>(context, returnNullIfNotFound: true) ??
+        JabInjector.root.get<T>();
   }
 
   JabFactory<T> getFactory<T>({bool searchAllAncestors = false}) {
     if (searchAllAncestors) {
       // Only search all ancestors when o
-      return _jab.getFactory<T>() ?? Jab.getFactory<T>(context) ?? JabInjector.root.get<T>();
+      return _jab.getFactory<T>() ??
+          Jab.getFactory<T>(context) ??
+          JabInjector.root.get<T>();
     } else {
       return _jab.getFactory<T>();
     }
@@ -270,7 +274,9 @@ class JabInjector {
       throw Exception('Creating an instance of $T is forbidden.');
     }
 
-    if (!_isRoot() && JabInjector.root._canCreate != null && !JabInjector.root._canCreate(T)) {
+    if (!_isRoot() &&
+        JabInjector.root._canCreate != null &&
+        !JabInjector.root._canCreate(T)) {
       throw Exception('Creating an instance of $T is forbidden.');
     }
 
@@ -363,7 +369,8 @@ abstract class ViewStateBase {
   void dispose();
 }
 
-abstract class ViewState<T extends StatefulWidget> extends State<T> implements ViewStateBase {}
+abstract class ViewState<T extends StatefulWidget> extends State<T>
+    implements ViewStateBase {}
 
 mixin BlocMixin<T> on ViewStateBase {
   T get bloc => _bloc;
