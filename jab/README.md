@@ -8,7 +8,7 @@ In the Jab Example app, there are three main services: `Logger`, `CounterStore` 
 
 ### Resolving Dependencies
 
-All services in Jab should be provided using a `JabFactory<T>` method that passes an injector function as a paramter and is supposed to return an instance on a service, e.g:
+All services in Jab should be provided using a `JabFactory<T>` method that passes an injector function as a parameter and is supposed to return an instance of a service, e.g:
 
 ```dart
 final providers = <JabFactory>[

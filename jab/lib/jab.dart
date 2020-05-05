@@ -96,9 +96,18 @@ class Jab extends StatefulWidget {
   ///
   /// After the Service has been created, the `Jab.onCreate` callback is called.
   static T get<T>(BuildContext context, {bool returnNullIfNotFound = false}) {
-    // This method might be called from a widget tree that does not have an instance of [Jab].
-    // In such a case, this method needs to delegate to the root [JabInjector] directly.
-    final service = of(context)?.get<T>() ?? JabInjector.root.get<T>();
+    T service;
+
+    if (JabInjector._useRootAsDefault) {
+      // You can explicitly specify to use the root injector.
+      // This can be useful especially during Flutter E2E Widget tests.
+      service = JabInjector.root.get<T>() ?? of(context)?.get<T>();
+    } else {
+      // This method might be called from a widget tree that does not have an instance of [Jab].
+      // In such a case, this method needs to delegate to the root [JabInjector] directly.
+      service = of(context)?.get<T>() ?? JabInjector.root.get<T>();
+    }
+
     if (service != null) {
       return service;
     } else if (returnNullIfNotFound) {
@@ -144,6 +153,12 @@ class Jab extends StatefulWidget {
   /// Consider using this method in testing.
   static void provideForRoot(Iterable<JabFactory> factories) {
     JabInjector.root.provide(factories);
+  }
+
+  /// If set to true, Jab will always try to resolve dependencies using the root injector.
+  /// This can be useful especially during Flutter E2E Widget tests (e.g. to mock the default HTTP Client).
+  static void useRootAsDefault([bool useRootAsDefault = true]) {
+    JabInjector._useRootAsDefault = useRootAsDefault;
   }
 
   /// Remove all factories and existing Service instances from the root [JabInjector].
@@ -195,17 +210,16 @@ class _JabState extends State<Jab> implements JabController {
   ///
   /// If the Service has not been initialized, a new instance of the Service will be create lazily.
   T get<T>() {
-    return _jab.get<T>() ??
-        Jab.get<T>(context, returnNullIfNotFound: true) ??
-        JabInjector.root.get<T>();
+    return _jab.get<T>() ?? Jab.get<T>(context, returnNullIfNotFound: true) ?? JabInjector.root.get<T>();
   }
 
   JabFactory<T> getFactory<T>({bool searchAllAncestors = false}) {
     if (searchAllAncestors) {
-      // Only search all ancestors when o
-      return _jab.getFactory<T>() ??
-          Jab.getFactory<T>(context) ??
-          JabInjector.root.get<T>();
+      if (JabInjector._useRootAsDefault) {
+        return JabInjector.root.get<T>() ?? _jab.getFactory<T>() ?? Jab.getFactory<T>(context);
+      } else {
+        return _jab.getFactory<T>() ?? Jab.getFactory<T>(context) ?? JabInjector.root.get<T>();
+      }
     } else {
       return _jab.getFactory<T>();
     }
@@ -239,6 +253,8 @@ class JabInjector {
 
   /// The root instance of the injector.
   static final JabInjector root = JabInjector._(null);
+
+  static bool _useRootAsDefault = false;
 
   CanCreate _canCreate;
 
@@ -274,9 +290,7 @@ class JabInjector {
       throw Exception('Creating an instance of $T is forbidden.');
     }
 
-    if (!_isRoot() &&
-        JabInjector.root._canCreate != null &&
-        !JabInjector.root._canCreate(T)) {
+    if (!_isRoot() && JabInjector.root._canCreate != null && !JabInjector.root._canCreate(T)) {
       throw Exception('Creating an instance of $T is forbidden.');
     }
 
@@ -369,8 +383,7 @@ abstract class ViewStateBase {
   void dispose();
 }
 
-abstract class ViewState<T extends StatefulWidget> extends State<T>
-    implements ViewStateBase {}
+abstract class ViewState<T extends StatefulWidget> extends State<T> implements ViewStateBase {}
 
 mixin BlocMixin<T> on ViewStateBase {
   T get bloc => _bloc;
@@ -402,5 +415,28 @@ mixin BlocMixin<T> on ViewStateBase {
     if (bloc is Sink) {
       (bloc as Sink).close();
     }
+  }
+}
+
+class JabProvider<T> extends StatefulWidget {
+  const JabProvider({
+    Key key,
+    this.child,
+  }) : super(key: key);
+
+  final Widget child;
+
+  @override
+  _JabProviderState<T> createState() => _JabProviderState<T>();
+}
+
+class _JabProviderState<T> extends State<JabProvider<T>> {
+  @override
+  Widget build(BuildContext context) {
+    return Jab(
+      providers: () => [
+        (jab) => Jab.of(context).getFactory<T>(),
+      ],
+    );
   }
 }

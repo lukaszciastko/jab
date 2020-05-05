@@ -52,7 +52,8 @@ class CounterView extends StatefulWidget {
   _CounterViewState createState() => _CounterViewState();
 }
 
-class _CounterViewState extends ViewState<CounterView> with BlocMixin<CounterBloc> {
+class _CounterViewState extends ViewState<CounterView>
+    with BlocMixin<CounterBloc> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(

@@ -96,7 +96,8 @@ class CounterBloc implements Sink<CounterEvent> {
 }
 
 class GoldenCounterBloc extends CounterBloc {
-  GoldenCounterBloc(CounterStore counterStore, Logger logger) : super(counterStore, logger);
+  GoldenCounterBloc(CounterStore counterStore, Logger logger)
+      : super(counterStore, logger);
 
   @override
   void add(CounterEvent event) {
@@ -137,7 +138,9 @@ class CounterApp extends StatelessWidget {
         Jab.get<Logger>(context).add('CounterApp.Jab.onCreate: $service');
       },
       onDispose: (service) {
-        JabInjector.root.get<Logger>().add('CounterApp.Jab.onDispose: $service');
+        JabInjector.root
+            .get<Logger>()
+            .add('CounterApp.Jab.onDispose: $service');
       },
       child: MaterialApp(
         title: 'Jab Examples',
@@ -197,7 +200,8 @@ class CounterView extends StatefulWidget {
   _CounterViewState createState() => _CounterViewState();
 }
 
-class _CounterViewState extends ViewState<CounterView> with BlocMixin<CounterBloc> {
+class _CounterViewState extends ViewState<CounterView>
+    with BlocMixin<CounterBloc> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
