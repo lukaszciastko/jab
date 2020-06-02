@@ -90,7 +90,10 @@ class Jab extends StatefulWidget {
     return _Jab.of(context);
   }
 
-  /// Returns an instance of a service of type `T` from the nearest [Jab] up inI the widget tree.
+  /// Returns an instance of a service of type `T` from the nearest [Jab] up in the widget tree.
+  ///
+  /// If no instance of the service can be found in the Widget tree,
+  /// [Jab] will attempt to find the service in any [JabInjector] which is currently initialized.
   ///
   /// If the Service has not been initialized, a new instance of the Service will be create lazily.
   ///
@@ -105,7 +108,7 @@ class Jab extends StatefulWidget {
     } else {
       // This method might be called from a widget tree that does not have an instance of [Jab].
       // In such a case, this method needs to delegate to the root [JabInjector] directly.
-      service = of(context)?.get<T>() ?? JabInjector.root.get<T>();
+      service = of(context)?.get<T>() ?? JabInjector.root.get<T>() ?? JabInjector.getGlobal<T>();
     }
 
     if (service != null) {
@@ -254,6 +257,8 @@ class JabInjector {
   /// The root instance of the injector.
   static final JabInjector root = JabInjector._(null);
 
+  static final _global = <Type, Set<Object>>{};
+
   static bool _useRootAsDefault = false;
 
   CanCreate _canCreate;
@@ -273,6 +278,15 @@ class JabInjector {
 
   T get<T>() {
     return _services[T] ?? create<T>();
+  }
+
+  static T getGlobal<T>() {
+    if (_global[T]?.isNotEmpty == true) {
+      for (final service in _global[T].toList().reversed) {
+        if (service is T) return service;
+      }
+    }
+    return null;
   }
 
   JabFactory<T> getFactory<T>() {
@@ -304,6 +318,11 @@ class JabInjector {
       JabInjector.root._onCreate(service);
     }
 
+    if (!_isRoot()) {
+      _global[T] ??= {};
+      _global[T].add(service);
+    }
+
     return _services[T] = service;
   }
 
@@ -322,6 +341,11 @@ class JabInjector {
 
       if (service is Sink) {
         service.close();
+      }
+
+      if (!_isRoot()) {
+        // TODO: Test this:
+        _global[service.runtimeType].remove(service);
       }
     }
 
