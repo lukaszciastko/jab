@@ -146,7 +146,7 @@ class Jab extends StatefulWidget {
   }
 
   static T get<T extends Object>(BuildContext context) {
-    return of(context).get<T>();
+    return JabServiceProvider.get(context) ?? of(context).get<T>();
   }
 
   static T getTransient<T extends Object>(BuildContext context) {
@@ -224,10 +224,25 @@ class JabServiceBuilder<T extends Object> extends StatefulWidget {
     Key? key,
     this.providers,
     required this.builder,
+    this.isScoped = false,
   }) : super(key: key);
+
+  factory JabServiceBuilder.scoped({
+    Key? key,
+    Iterable<JabProvider> Function()? providers,
+    required JabServiceWidgetBuilder<T> builder,
+  }) {
+    return JabServiceBuilder(
+      key: key,
+      providers: providers,
+      builder: builder,
+      isScoped: true,
+    );
+  }
 
   final Iterable<JabProvider> Function()? providers;
   final JabServiceWidgetBuilder<T> builder;
+  final bool isScoped;
 
   @override
   _JabServiceBuilderState<T> createState() => _JabServiceBuilderState<T>();
@@ -238,17 +253,53 @@ class _JabServiceBuilderState<T extends Object> extends State<JabServiceBuilder<
   Widget build(BuildContext context) {
     if (widget.providers != null) {
       return Jab(
-        providers: widget.providers ?? () => [],
+        providers: widget.providers,
         child: Builder(
-          builder: (context) {
-            return widget.builder(context, Jab.get<T>(context));
-          },
+          builder: _buildWidget,
         ),
+      );
+    } else {
+      return _buildWidget(context);
+    }
+  }
+
+  Widget _buildWidget(BuildContext context) {
+    if (widget.isScoped) {
+      return _InitDisposeBuilder<T>(
+        init: () => Jab.getTransient<T>(context),
+        dispose: (service) {
+          if (service is JabServiceMixin) {
+            service.onDispose();
+          }
+        },
+        builder: (context, service) {
+          return JabServiceProvider(
+            service: service,
+            child: widget.builder(context, service),
+          );
+        },
       );
     } else {
       return widget.builder(context, Jab.get<T>(context));
     }
   }
+}
+
+class JabServiceProvider<T extends Object> extends InheritedWidget {
+  JabServiceProvider({
+    Key? key,
+    required this.service,
+    required Widget child,
+  }) : super(key: key, child: child);
+
+  final T service;
+
+  static T? get<T extends Object>(BuildContext context) {
+    return context.getInheritedWidgetOfExactType<JabBlocProvider<T>>()?.bloc;
+  }
+
+  @override
+  bool updateShouldNotify(_) => false;
 }
 
 typedef JabBlocWidgetBuilder<T> = Widget Function(BuildContext context, T bloc);
@@ -272,17 +323,53 @@ class _JabBlocBuilderState<T extends Object> extends State<JabBlocBuilder<T>> {
   Widget build(BuildContext context) {
     if (widget.providers != null) {
       return Jab(
-        providers: widget.providers ?? () => [],
+        providers: widget.providers,
         child: Builder(
-          builder: (context) {
-            return widget.builder(context, Jab.getTransient<T>(context));
-          },
+          builder: _buildWidget,
         ),
       );
     } else {
-      return widget.builder(context, Jab.getTransient<T>(context));
+      return _buildWidget(context);
     }
   }
+
+  Widget _buildWidget(BuildContext context) {
+    return _InitDisposeBuilder<T>(
+      init: () => Jab.getTransient(context),
+      dispose: (bloc) {
+        if (bloc is Sink) {
+          bloc.close();
+        }
+      },
+      builder: (BuildContext context, T bloc) {
+        return JabBlocProvider<T>(
+          bloc: bloc,
+          child: Builder(
+            builder: (context) {
+              return widget.builder(context, bloc);
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class JabBlocProvider<T extends Object> extends InheritedWidget {
+  JabBlocProvider({
+    Key? key,
+    required this.bloc,
+    required Widget child,
+  }) : super(key: key, child: child);
+
+  final T bloc;
+
+  static T? get<T extends Object>(BuildContext context) {
+    return context.getInheritedWidgetOfExactType<JabBlocProvider<T>>()?.bloc;
+  }
+
+  @override
+  bool updateShouldNotify(_) => false;
 }
 
 abstract class ViewStateBase {
@@ -298,6 +385,7 @@ abstract class ViewState<T extends StatefulWidget> extends State<T> implements V
 mixin BlocMixin<T extends Object> on ViewStateBase {
   T get bloc => _bloc;
   late T _bloc;
+  bool _close = true;
 
   @override
   void initState() {
@@ -312,11 +400,17 @@ mixin BlocMixin<T extends Object> on ViewStateBase {
   }
 
   void _initBloc() {
-    _bloc = Jab.getTransient<T>(context);
+    final bloc = JabBlocProvider.get<T>(context);
+    if (bloc != null) {
+      _bloc = bloc;
+      _close = false;
+    } else {
+      _bloc = Jab.getTransient<T>(context);
+    }
   }
 
   void _disposeBloc() {
-    if (bloc is Sink) {
+    if (_close && bloc is Sink) {
       (bloc as Sink).close();
     }
   }
@@ -367,62 +461,50 @@ abstract class StateWithService<T extends StatefulWidget, S extends Object> exte
   }
 }
 
-class JabScope<S extends Object> extends StatefulWidget {
-  const JabScope({
-    Key? key,
-    required this.child,
-  }) : super(key: key);
-
-  final Widget child;
-
-  @override
-  _JabScopeState<S> createState() => _JabScopeState<S>();
-}
-
-class _JabScopeState<S extends Object> extends State<JabScope<S>> {
-  _JabScopeState({this.injector});
-
-  final JabInjector? injector;
-
-  S? get service => _service;
-  S? _service;
-
-  @override
-  void initState() {
-    super.initState();
-    if (injector != null) {
-      _service = injector!.getTransient<S>();
-    } else {
-      _service = Jab.get<S>(context);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return _JabScope(service: service, child: widget.child);
-  }
-}
-
-class _JabScope<T extends Object> extends InheritedWidget {
-  _JabScope({Key? key, required this.service, required Widget child}) : super(key: key, child: child);
-
-  final T? service;
-
-  T? maybeOf<T extends Object>(BuildContext context) {
-    return context.getInheritedWidgetOfExactType<_JabScope<T>>()?.service;
-  }
-
-  @override
-  bool updateShouldNotify(_JabScope<T> oldWidget) {
-    return service != oldWidget.service;
-  }
-}
-
 extension _InheritedWidgetBuildContextExtension on BuildContext {
   T? getInheritedWidgetOfExactType<T extends InheritedWidget>() {
     final widget = getElementForInheritedWidgetOfExactType<T>()?.widget;
     if (widget != null && widget is T) {
       return widget;
     }
+  }
+}
+
+typedef _InitDisposeWidgetBuilder<T> = Widget Function(BuildContext contxt, T obj);
+
+class _InitDisposeBuilder<T> extends StatefulWidget {
+  const _InitDisposeBuilder({
+    Key? key,
+    required this.init,
+    required this.dispose,
+    required this.builder,
+  }) : super(key: key);
+
+  final T Function() init;
+  final void Function(T obj) dispose;
+  final _InitDisposeWidgetBuilder<T> builder;
+
+  @override
+  _InitBuilderState<T> createState() => _InitBuilderState<T>();
+}
+
+class _InitBuilderState<T> extends State<_InitDisposeBuilder<T>> {
+  late T _obj;
+
+  @override
+  void initState() {
+    super.initState();
+    _obj = widget.init();
+  }
+
+  @override
+  void dispose() {
+    widget.dispose(_obj);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return widget.builder(context, _obj);
   }
 }
