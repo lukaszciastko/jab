@@ -403,6 +403,8 @@ abstract class ViewStateBase {
   BuildContext get context;
 
   void initState();
+  
+  void didChangeDependencies();
 
   void dispose();
 }
