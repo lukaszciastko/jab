@@ -84,8 +84,8 @@ class Jab extends StatefulWidget {
 
   final Widget child;
 
-  static JabController? of(BuildContext context) {
-    return _Jab.of(context);
+  static JabController of(BuildContext context) {
+    return _Jab.of(context) ?? (throw Exception('Jab not found in the Widget tree.'));
   }
 
   /// Returns an instance of a service of type `T` from the nearest [Jab] up in the widget tree.
@@ -105,13 +105,13 @@ class Jab extends StatefulWidget {
       try {
         service = JabInjector.root.get<T>();
       } catch (_) {
-        service = of(context)?.get<T>();
+        service = of(context).get<T>();
       }
     } else {
       // This method might be called from a widget tree that does not have an instance of [Jab].
       // In such a case, this method needs to delegate to the root [JabInjector] directly.
       try {
-        service = of(context)!.get<T>();
+        service = of(context).get<T>();
       } catch (_) {
         try {
           service = JabInjector.root.get<T>();
@@ -132,7 +132,7 @@ class Jab extends StatefulWidget {
   ///
   /// Use this method to obtain a [JabFactory<T>] in order to create and inject the service with a custom provider.
   static JabFactory<T>? getFactory<T extends Object>(BuildContext context) {
-    return of(context)?.getFactory<T>(searchAllAncestors: true);
+    return of(context).getFactory<T>(searchAllAncestors: true);
   }
 
   /// Set up a global callback to veto attempts to create a Service.
@@ -439,7 +439,7 @@ mixin BlocMixin<T extends Object> on ViewStateBase {
       throw 'No factory for BloC of type $T found.';
     }
 
-    final get = Jab.of(context)?.get ?? (throw 'No Jab found.');
+    final get = Jab.of(context).get;
 
     _bloc = factory(get);
   }
@@ -468,7 +468,7 @@ class _JabProviderState<T extends Object> extends State<JabProvider<T>> {
   Widget build(BuildContext context) {
     return Jab(
       providers: () => [
-        (jab) => Jab.of(context)?.getFactory<T>() ?? (throw 'No factory for Service of type $T found.'),
+        (jab) => Jab.of(context).getFactory<T>() ?? (throw 'No factory for Service of type $T found.'),
       ],
       child: widget.child,
     );
