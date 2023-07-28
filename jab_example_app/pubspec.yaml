@@ -1,16 +1,15 @@
 name: jab_example_app
 description: A new Flutter project.
-version: 0.0.1
-author:
-homepage:
+version: 0.0.2
+publish_to: none
 
 environment:
-  sdk: ">=2.1.0 <3.0.0"
+  sdk: ">=2.17.0 <3.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  rxdart: ^0.24.0
+  rxdart: ^0.27.7
   jab:
     path: ../jab
 

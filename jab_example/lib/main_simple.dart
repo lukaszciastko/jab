@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:jab/jab.dart';
 
@@ -52,8 +51,7 @@ class CounterView extends StatefulWidget {
   _CounterViewState createState() => _CounterViewState();
 }
 
-class _CounterViewState extends ViewState<CounterView>
-    with BlocMixin<CounterBloc> {
+class _CounterViewState extends ViewState<CounterView> with BlocMixin<CounterBloc> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -98,7 +96,7 @@ class _CounterViewState extends ViewState<CounterView>
 }
 
 class IncrementButton extends StatelessWidget {
-  const IncrementButton({Key key, this.onPressed}) : super(key: key);
+  const IncrementButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -114,7 +112,7 @@ class IncrementButton extends StatelessWidget {
 }
 
 class DecrementButton extends StatelessWidget {
-  const DecrementButton({Key key, this.onPressed}) : super(key: key);
+  const DecrementButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -130,7 +128,7 @@ class DecrementButton extends StatelessWidget {
 }
 
 class ClearButton extends StatelessWidget {
-  const ClearButton({Key key, this.onPressed}) : super(key: key);
+  const ClearButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 

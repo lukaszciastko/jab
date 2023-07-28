@@ -2,7 +2,7 @@ library jab;
 
 import 'package:flutter/widgets.dart';
 
-typedef JabFactory<T extends Object> = T Function(T Function<T>() get);
+typedef JabFactory<T extends Object> = T Function(T Function<T extends Object>() get);
 
 typedef _JabFactoryProvider = Iterable<JabFactory> Function();
 
@@ -14,24 +14,22 @@ typedef CanCreate = bool Function(Type type);
 /// A callback called before a Service instance is disposed.
 ///
 /// Use this callback to initialize the Service.
-typedef OnCreate = void Function(Object service);
+typedef OnCreate<T extends Object> = void Function(T service);
 
 /// A callback called before a Service instance is disposed.
 ///
 /// Use this callback to dispose any resources used by the Service.
-typedef OnDispose = void Function(Object service);
+typedef OnDispose<T extends Object> = void Function(T service);
 
 class _Jab extends InheritedWidget {
   const _Jab({
-    Key key,
-    @required this.jabController,
-    @required Widget child,
-  })  : assert(jabController != null && child != null),
-        super(key: key, child: child);
+    required this.jabController,
+    required super.child,
+  });
 
   final JabController jabController;
 
-  static JabController of(BuildContext context) {
+  static JabController? of(BuildContext context) {
     final element = context.getElementForInheritedWidgetOfExactType<_Jab>();
     if (element != null) {
       return (element.widget as _Jab).jabController;
@@ -49,13 +47,13 @@ class _Jab extends InheritedWidget {
 /// [Jab] is a hierarchical dependency injection framework for Flutter.
 class Jab extends StatefulWidget {
   const Jab({
-    Key key,
-    @required this.providers,
+    super.key,
+    required this.providers,
     this.canCreate,
     this.onCreate,
     this.onDispose,
-    this.child,
-  }) : super(key: key);
+    required this.child,
+  });
 
   /// A callback called to obtain factories defined
   final _JabFactoryProvider providers;
@@ -65,7 +63,7 @@ class Jab extends StatefulWidget {
   /// If the callback returns false, the Service will not be created.
   ///
   /// This callback is only called by the [JabInjector] associated with this [Jab] instance.
-  final CanCreate canCreate;
+  final CanCreate? canCreate;
 
   /// A callback called before a Service instance is disposed.
   ///
@@ -74,7 +72,7 @@ class Jab extends StatefulWidget {
   ///
   /// This callback is only called by the [JabInjector] associated with this [Jab] instance.
   /// To receive a global callback after a Service is create, consider creating a global callback (`Jab.setOnCreate`).
-  final OnCreate onCreate;
+  final OnCreate? onCreate;
 
   /// A callback called before a Service instance is disposed.
   ///
@@ -82,11 +80,11 @@ class Jab extends StatefulWidget {
   ///
   /// This callback is only called by the [JabInjector] associated with this [Jab] instance.
   /// To receive a global callback before a Service is dispose, consider creating a global callback (`Jab.setOnDispose`).
-  final OnDispose onDispose;
+  final OnDispose? onDispose;
 
   final Widget child;
 
-  static JabController of(BuildContext context) {
+  static JabController? of(BuildContext context) {
     return _Jab.of(context);
   }
 
@@ -98,23 +96,33 @@ class Jab extends StatefulWidget {
   /// If the Service has not been initialized, a new instance of the Service will be create lazily.
   ///
   /// After the Service has been created, the `Jab.onCreate` callback is called.
-  static T get<T>(BuildContext context, {bool returnNullIfNotFound = false}) {
-    T service;
+  static T get<T extends Object>(BuildContext context) {
+    T? service;
 
     if (JabInjector._useRootAsDefault) {
       // You can explicitly specify to use the root injector.
       // This can be useful especially during Flutter E2E Widget tests.
-      service = JabInjector.root.get<T>() ?? of(context)?.get<T>();
+      try {
+        service = JabInjector.root.get<T>();
+      } catch (_) {
+        service = of(context)?.get<T>();
+      }
     } else {
       // This method might be called from a widget tree that does not have an instance of [Jab].
       // In such a case, this method needs to delegate to the root [JabInjector] directly.
-      service = of(context)?.get<T>() ?? JabInjector.root.get<T>() ?? JabInjector.getGlobal<T>();
+      try {
+        service = of(context)!.get<T>();
+      } catch (_) {
+        try {
+          service = JabInjector.root.get<T>();
+        } catch (_) {
+          service = JabInjector.getGlobal<T>();
+        }
+      }
     }
 
     if (service != null) {
       return service;
-    } else if (returnNullIfNotFound) {
-      return null;
     } else {
       throw Exception('A Service of type $T not found.');
     }
@@ -123,7 +131,7 @@ class Jab extends StatefulWidget {
   /// Returns a [JabFactory<T>] of a service of type `T` from the nearest [Jab] up in the widget tree.
   ///
   /// Use this method to obtain a [JabFactory<T>] in order to create and inject the service with a custom provider.
-  static JabFactory<T> getFactory<T>(BuildContext context) {
+  static JabFactory<T>? getFactory<T extends Object>(BuildContext context) {
     return of(context)?.getFactory<T>(searchAllAncestors: true);
   }
 
@@ -176,13 +184,13 @@ class Jab extends StatefulWidget {
 }
 
 abstract class JabController {
-  T get<T>();
+  T get<T extends Object>();
 
-  JabFactory<T> getFactory<T>({bool searchAllAncestors = false});
+  JabFactory<T>? getFactory<T extends Object>({bool searchAllAncestors = false});
 }
 
 class _JabState extends State<Jab> implements JabController {
-  JabInjector _jab;
+  late JabInjector _jab;
 
   @override
   void initState() {
@@ -212,26 +220,32 @@ class _JabState extends State<Jab> implements JabController {
   /// Returns an instance of a service of type `T` from this or the nearest [Jab] up in the widget tree.
   ///
   /// If the Service has not been initialized, a new instance of the Service will be create lazily.
-  T get<T>() {
-    return _jab.get<T>() ?? Jab.get<T>(context, returnNullIfNotFound: true) ?? JabInjector.root.get<T>();
+  T get<T extends Object>() {
+    try {
+      return _jab.get<T>();
+    } catch (_) {
+      try {
+        return Jab.get<T>(context);
+      } catch (_) {
+        return JabInjector.root.get<T>();
+      }
+    }
   }
 
-  JabFactory<T> getFactory<T>({bool searchAllAncestors = false}) {
+  JabFactory<T>? getFactory<T extends Object>({bool searchAllAncestors = false}) {
     if (searchAllAncestors) {
       if (JabInjector._useRootAsDefault) {
-        return JabInjector.root.get<T>() ?? _jab.getFactory<T>() ?? Jab.getFactory<T>(context);
+        return JabInjector.root.getFactory<T>() ?? _jab.getFactory<T>() ?? Jab.getFactory<T>(context);
       } else {
-        return _jab.getFactory<T>() ?? Jab.getFactory<T>(context) ?? JabInjector.root.get<T>();
+        return _jab.getFactory<T>() ?? Jab.getFactory<T>(context) ?? JabInjector.root.getFactory<T>();
       }
     } else {
-      return _jab.getFactory<T>();
+      return _jab.getFactory<T>() ?? (throw Exception('A Factory of type $T not found.'));
     }
   }
 
   void _setUpProviders() {
-    if (widget.providers != null) {
-      _jab.provide(widget.providers());
-    }
+    _jab.provide(widget.providers());
   }
 
   void _setUpCallbacks() {
@@ -242,8 +256,8 @@ class _JabState extends State<Jab> implements JabController {
 }
 
 class JabInjector {
-  JabInjector._(this._ownerGet) {
-    if (_ownerGet == null) _ownerGet = this.get;
+  JabInjector._(T? Function<T extends Object>()? ownerGet) {
+    _ownerGet = ownerGet ?? this.get;
   }
 
   /// A reference to the `get` method of the [_JabState] that owns this [JabInjector].
@@ -252,7 +266,7 @@ class JabInjector {
   /// this method is set to the `get` method of this [JabInjector].
   ///
   /// Do not use this method directly - use `_get` instead which throws an error if `T` cannot be found.
-  T Function<T>() _ownerGet;
+  late final T? Function<T extends Object>() _ownerGet;
 
   /// The root instance of the injector.
   static final JabInjector root = JabInjector._(null);
@@ -261,11 +275,11 @@ class JabInjector {
 
   static bool _useRootAsDefault = false;
 
-  CanCreate _canCreate;
+  CanCreate? _canCreate;
 
-  OnCreate _onCreate;
+  OnCreate? _onCreate;
 
-  OnDispose _onDispose;
+  OnDispose? _onDispose;
 
   final _factories = <JabFactory>{};
 
@@ -276,51 +290,55 @@ class JabInjector {
     _factories.addAll(factories);
   }
 
-  T get<T>() {
-    return _services[T] ?? create<T>();
+  T get<T extends Object>() {
+    return _services[T] as T? ?? create<T>() ?? (throw Exception('A Service of type $T not found.'));
   }
 
-  static T getGlobal<T>() {
-    if (_global[T]?.isNotEmpty == true) {
-      for (final service in _global[T].toList().reversed) {
+  static T? getGlobal<T extends Object>() {
+    final global = _global[T];
+    if (global != null && global.isNotEmpty) {
+      for (final service in global.toList().reversed) {
         if (service is T) return service;
       }
     }
     return null;
   }
 
-  JabFactory<T> getFactory<T>() {
-    return _factories.lastWhereOrNull((f) => f is JabFactory<T>);
+  JabFactory<T>? getFactory<T extends Object>() {
+    final factories = _factories.whereType<JabFactory<T>>();
+    if (factories.isNotEmpty) {
+      return factories.last;
+    } else {
+      return null;
+    }
   }
 
-  T create<T>() {
+  T? create<T extends Object>() {
     final factory = getFactory<T>();
 
     if (factory == null) {
       return null;
     }
 
-    if (_canCreate != null && !_canCreate(T)) {
+    if (_canCreate?.call(T) == false) {
       throw Exception('Creating an instance of $T is forbidden.');
     }
 
-    if (!_isRoot() && JabInjector.root._canCreate != null && !JabInjector.root._canCreate(T)) {
+    if (!_isRoot() && JabInjector.root._canCreate?.call(T) == false) {
       throw Exception('Creating an instance of $T is forbidden.');
     }
 
     final service = factory(_get);
 
-    if (_onCreate != null) {
-      _onCreate(service);
-    }
+    _onCreate?.call(service);
 
-    if (!_isRoot() && JabInjector.root._onCreate != null) {
-      JabInjector.root._onCreate(service);
+    if (!_isRoot()) {
+      JabInjector.root._onCreate?.call(service);
     }
 
     if (!_isRoot()) {
       _global[T] ??= {};
-      _global[T].add(service);
+      _global[T]!.add(service);
     }
 
     return _services[T] = service;
@@ -331,12 +349,10 @@ class JabInjector {
   /// If the Service is an instance of [Sink], the `Sink.close` method will be called.
   void clear() {
     for (final service in _services.values) {
-      if (_onDispose != null) {
-        _onDispose(service);
-      }
+      _onDispose?.call(service);
 
-      if (!_isRoot() && JabInjector.root._onDispose != null) {
-        JabInjector.root._onDispose(service);
+      if (!_isRoot()) {
+        JabInjector.root._onDispose?.call(service);
       }
 
       if (service is Sink) {
@@ -344,8 +360,7 @@ class JabInjector {
       }
 
       if (!_isRoot()) {
-        // TODO: Test this:
-        _global[service.runtimeType].remove(service);
+        _global[service.runtimeType]?.remove(service);
       }
     }
 
@@ -358,7 +373,7 @@ class JabInjector {
   }
 
   /// The method is passed as a parameter when a [JabFactory] is invoked.
-  T _get<T>() {
+  T _get<T extends Object>() {
     final service = _ownerGet<T>();
     if (service != null) {
       return service;
@@ -370,11 +385,11 @@ class JabInjector {
 
 typedef JabWidgetBuilder<T> = Widget Function(BuildContext context, T service);
 
-class JabClient<T> extends StatefulWidget {
+class JabClient<T extends Object> extends StatefulWidget {
   const JabClient({
-    Key key,
-    @required this.builder,
-  }) : super(key: key);
+    super.key,
+    required this.builder,
+  });
 
   final JabWidgetBuilder<T> builder;
 
@@ -382,20 +397,10 @@ class JabClient<T> extends StatefulWidget {
   _JabClientState<T> createState() => _JabClientState<T>();
 }
 
-class _JabClientState<T> extends State<JabClient<T>> {
+class _JabClientState<T extends Object> extends State<JabClient<T>> {
   @override
   Widget build(BuildContext context) {
     return widget.builder(context, Jab.get<T>(context));
-  }
-}
-
-extension _IterableExtensions<E> on Set<E> {
-  E lastWhereOrNull(bool test(E element)) {
-    try {
-      return this.lastWhere(test);
-    } catch (e) {
-      return null;
-    }
   }
 }
 
@@ -403,7 +408,7 @@ abstract class ViewStateBase {
   BuildContext get context;
 
   void initState();
-  
+
   void didChangeDependencies();
 
   void dispose();
@@ -411,9 +416,9 @@ abstract class ViewStateBase {
 
 abstract class ViewState<T extends StatefulWidget> extends State<T> implements ViewStateBase {}
 
-mixin BlocMixin<T> on ViewStateBase {
+mixin BlocMixin<T extends Object> on ViewStateBase {
   T get bloc => _bloc;
-  T _bloc;
+  late T _bloc;
 
   @override
   void initState() {
@@ -434,7 +439,9 @@ mixin BlocMixin<T> on ViewStateBase {
       throw 'No factory for BloC of type $T found.';
     }
 
-    _bloc = factory(Jab.of(context).get);
+    final get = Jab.of(context)?.get ?? (throw 'No Jab found.');
+
+    _bloc = factory(get);
   }
 
   void _disposeBloc() {
@@ -444,11 +451,11 @@ mixin BlocMixin<T> on ViewStateBase {
   }
 }
 
-class JabProvider<T> extends StatefulWidget {
+class JabProvider<T extends Object> extends StatefulWidget {
   const JabProvider({
-    Key key,
-    this.child,
-  }) : super(key: key);
+    super.key,
+    required this.child,
+  });
 
   final Widget child;
 
@@ -456,13 +463,14 @@ class JabProvider<T> extends StatefulWidget {
   _JabProviderState<T> createState() => _JabProviderState<T>();
 }
 
-class _JabProviderState<T> extends State<JabProvider<T>> {
+class _JabProviderState<T extends Object> extends State<JabProvider<T>> {
   @override
   Widget build(BuildContext context) {
     return Jab(
       providers: () => [
-        (jab) => Jab.of(context).getFactory<T>(),
+        (jab) => Jab.of(context)?.getFactory<T>() ?? (throw 'No factory for Service of type $T found.'),
       ],
+      child: widget.child,
     );
   }
 }

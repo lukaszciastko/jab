@@ -8,7 +8,7 @@ import 'package:rxdart/rxdart.dart';
 
 class Logger implements Sink<String> {
   List<String> get logs => _logs;
-  final _logs = List<String>();
+  final _logs = <String>[];
 
   @override
   void add(String data) {
@@ -48,10 +48,10 @@ class CounterStore extends Stream<double> implements Sink<double> {
 
   @override
   StreamSubscription<double> listen(
-    void Function(double event) onData, {
-    Function onError,
-    void Function() onDone,
-    bool cancelOnError,
+    void Function(double event)? onData, {
+    Function? onError,
+    void Function()? onDone,
+    bool? cancelOnError,
   }) {
     return _controller.listen(
       onData,
@@ -68,8 +68,8 @@ class CounterBloc implements Sink<CounterEvent> {
   final CounterStore _counterStore;
   final Logger _logger;
 
-  StreamSubscription<double> _subscription;
-  double _currentValue;
+  late final StreamSubscription<double> _subscription;
+  late double _currentValue;
 
   CounterBloc(this._counterStore, this._logger) {
     _subscription = _counterStore.listen((value) => _currentValue = value);
@@ -96,8 +96,7 @@ class CounterBloc implements Sink<CounterEvent> {
 }
 
 class GoldenCounterBloc extends CounterBloc {
-  GoldenCounterBloc(CounterStore counterStore, Logger logger)
-      : super(counterStore, logger);
+  GoldenCounterBloc(CounterStore counterStore, Logger logger) : super(counterStore, logger);
 
   @override
   void add(CounterEvent event) {
@@ -138,9 +137,7 @@ class CounterApp extends StatelessWidget {
         Jab.get<Logger>(context).add('CounterApp.Jab.onCreate: $service');
       },
       onDispose: (service) {
-        JabInjector.root
-            .get<Logger>()
-            .add('CounterApp.Jab.onDispose: $service');
+        JabInjector.root.get<Logger>().add('CounterApp.Jab.onDispose: $service');
       },
       child: MaterialApp(
         title: 'Jab Examples',
@@ -200,8 +197,7 @@ class CounterView extends StatefulWidget {
   _CounterViewState createState() => _CounterViewState();
 }
 
-class _CounterViewState extends ViewState<CounterView>
-    with BlocMixin<CounterBloc> {
+class _CounterViewState extends ViewState<CounterView> with BlocMixin<CounterBloc> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -247,7 +243,7 @@ class _CounterViewState extends ViewState<CounterView>
 }
 
 class IncrementButton extends StatelessWidget {
-  const IncrementButton({Key key, this.onPressed}) : super(key: key);
+  const IncrementButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -263,7 +259,7 @@ class IncrementButton extends StatelessWidget {
 }
 
 class DecrementButton extends StatelessWidget {
-  const DecrementButton({Key key, this.onPressed}) : super(key: key);
+  const DecrementButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -279,7 +275,7 @@ class DecrementButton extends StatelessWidget {
 }
 
 class ClearButton extends StatelessWidget {
-  const ClearButton({Key key, this.onPressed}) : super(key: key);
+  const ClearButton({super.key, required this.onPressed});
 
   final VoidCallback onPressed;
 

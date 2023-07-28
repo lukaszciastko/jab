@@ -13,3 +13,7 @@
 ## [0.0.4] - 2 June 2020
 
 * Breaking change: If an instance of Service cannot be found in the Widget tree, Jab will attempt to find the Service instance in all injectors which are currently initialized.
+
+## [0.0.5] - 28 July 2023
+
+Migrated the Jab library to support null safety.

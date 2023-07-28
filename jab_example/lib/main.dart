@@ -28,8 +28,8 @@ final factories = [
 
 class NewJab {
   NewJab({
-    this.factories,
-    this.providers,
+    required this.factories,
+    required this.providers,
   });
 
   final Iterable<JabFactory> Function() factories;
